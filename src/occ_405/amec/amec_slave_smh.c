@@ -5,7 +5,7 @@
 /*                                                                        */
 /* OpenPOWER OnChipController Project                                     */
 /*                                                                        */
-/* Contributors Listed Below - COPYRIGHT 2011,2017                        */
+/* Contributors Listed Below - COPYRIGHT 2011,2020                        */
 /* [+] International Business Machines Corp.                              */
 /*                                                                        */
 /*                                                                        */
@@ -79,6 +79,10 @@ extern GpeRequest G_wof_vfrt_req;
 //*************************************************************************/
 // Defines/Enums
 //*************************************************************************/
+// number of 500us ticks power cap alg will run in order to give previous
+// power cap Pstate changes time to be reflected in APSS power readings
+#define NUM_TICKS_RUN_PCAP 10  // 5ms
+
 smh_state_t G_amec_slv_state = {AMEC_INITIAL_STATE,
                                 AMEC_INITIAL_STATE,
                                 AMEC_INITIAL_STATE};
@@ -413,6 +417,7 @@ void amec_slv_common_tasks_pre(void)
 void amec_slv_common_tasks_post(void)
 {
   static bool L_active_1tick = FALSE;
+  static uint16_t L_run_pcap_ticks = 0;
 
   AMEC_DBG("\tAMEC Slave Post-State Common\n");
 
@@ -426,8 +431,13 @@ void amec_slv_common_tasks_post(void)
         // getting any APSS data from Master
         amec_slv_check_apss_fail();
 
-        // Call amec_power_control
-        amec_power_control();
+        // Check if it is time to Call amec_power_control
+        L_run_pcap_ticks++;
+        if(L_run_pcap_ticks == NUM_TICKS_RUN_PCAP)
+        {
+            amec_power_control();
+            L_run_pcap_ticks = 0;
+        }
 
         // Apply memory power control, if needed.
         amec_mem_power_control();
