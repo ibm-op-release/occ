@@ -5,7 +5,7 @@
 /*                                                                        */
 /* OpenPOWER OnChipController Project                                     */
 /*                                                                        */
-/* Contributors Listed Below - COPYRIGHT 2015,2018                        */
+/* Contributors Listed Below - COPYRIGHT 2015,2020                        */
 /* [+] International Business Machines Corp.                              */
 /*                                                                        */
 /*                                                                        */
@@ -34,6 +34,7 @@
 #define ALLOW_OPAL_TRACE       0x0008
 #define ALLOW_MEM_TRACE        0x0010
 #define ALLOW_AVSBUS_TRACE     0x0020
+#define ALLOW_PCAP_TRACE       0x0100
 
 // Start of SRAM memory
 #define SRAM_START_ADDRESS_405      0xFFF40000
