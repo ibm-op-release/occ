@@ -37,6 +37,12 @@
 #define APSS_MODE_AUTO2         1
 #define MAX_APSS_ADC_CHANNELS   16
 
+// magic value written by POWR to MBOX Scratch register 7 to indicate emergency power off (i.e. brownout)
+// and OCC should run NVDIMM CSAVE procedure
+#define EPOW_CSAVE          0xCAFEB0FF
+// indicates there was a scom error reading scratch register 7
+#define SCRATCH7_READ_ERROR 0xFFFFFFFF
+
 /* This data structure holds the common args data structures between the  */
 /* 405 and the GPE0, used in IPC communications.                          */
 /* We started by adding these common apss data structures to test the     */
@@ -89,6 +95,7 @@ typedef struct {
 typedef struct {
   GpeErrorStruct error;
   uint64_t meas_data[4]; // G_apss_pwr_meas (2nd block of data) (output from APSS)
+  uint32_t mboxScratch7; // SCOM read from MBOX Scratch register 7
 } apss_complete_args_t;
 
 typedef struct {

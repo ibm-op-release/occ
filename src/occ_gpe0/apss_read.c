@@ -395,7 +395,6 @@ void apss_complete_pwr_meas_read(ipc_msg_t* cmd, void* arg)
 {
     // the ipc arguments are passed through the ipc_msg_t structure, has a pointer
     // to the G_gpe_complete_pwr_meas_read_args
-
 #ifdef DEBUG_APSS_SEQ
     PK_TRACE("apss_complete_pwr_meas_read: enter");
 #endif
@@ -408,6 +407,7 @@ void apss_complete_pwr_meas_read(ipc_msg_t* cmd, void* arg)
     ipc_async_cmd_t *async_cmd = (ipc_async_cmd_t*)cmd;
     apss_complete_args_t *args = (apss_complete_args_t*)async_cmd->cmd_data;
     uint32_t     rdata_reg = 0;
+    uint64_t l_temp64 = 0;
     do {
         // Get Time of Day
         rc = getscom_abs(TOD_VALUE_REG, &args->meas_data[3]);
@@ -467,6 +467,18 @@ void apss_complete_pwr_meas_read(ipc_msg_t* cmd, void* arg)
                      diff_time);
         }
     }
+    // Read Mbox scratch register 7 (used to know if POWR detected EPOW for NVDIMM CSAVE)
+    // don't mark APSS data as bad if this SCOM fails
+    rc = getscom_abs(MBOX_SCRATCH7_REG, &l_temp64);
+    if(rc)
+    {
+        PK_TRACE("apss_complete_pwr_meas_read: MBOX_SCRATCH7_REG getscom failed. rc = 0x%08x",
+                 rc);
+        // indicate failure in the parm, leave the APSS data as good
+        args->mboxScratch7 = SCRATCH7_READ_ERROR;
+    }
+    else
+        args->mboxScratch7 = (uint32_t)(l_temp64 >> 32);
 
     // send back a response, IPC success (even if ffdc/rc are non zeros)
     rc = ipc_send_rsp(cmd, IPC_RC_SUCCESS);

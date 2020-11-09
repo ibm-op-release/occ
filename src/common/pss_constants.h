@@ -55,6 +55,8 @@
 #define TOD_STATUS_REG 0x00040008
 #define TOD_VALUE_REG  0x00040020
 
+#define MBOX_SCRATCH7_REG 0x0005003E
+
 // Constant for use in wait statments: waits (5 * MICROSECONDS)
 #define MICROSECONDS 600
 

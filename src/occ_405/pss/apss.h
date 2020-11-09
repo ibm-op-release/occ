@@ -84,6 +84,9 @@ extern volatile bool G_ApssPwrMeasCompleted;
 // Used to tell slave inbox that pwr meas is complete but NOT valid
 extern volatile bool G_ApssPwrMeasDoneInvalid;
 
+// contents of Mbox scratch register 7 for tracing later
+extern volatile uint32_t G_mboxScratch7;
+
 extern initGpioArgs_t G_gpe_apss_initialize_gpio_args;
 extern setApssModeArgs_t G_gpe_apss_set_mode_args;
 
