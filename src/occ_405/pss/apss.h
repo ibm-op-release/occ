@@ -66,6 +66,9 @@ extern uint16_t G_apss_fail_updown_count;     //Used to keep count of number of 
 #define APSS_RESET_STATE_REINIT       52
 #define APSS_RESET_STATE_COMPLETE     53
 
+// Time in ms to delay going to safe mode to allow detection of EPOW gpio from APSS
+#define NVDIMM_EPOW_SAFE_DELAY_MS     4
+
 struct apssPwrMeasStruct
 {
   uint16_t adc[MAX_APSS_ADC_CHANNELS];

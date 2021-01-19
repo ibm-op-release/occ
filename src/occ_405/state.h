@@ -37,10 +37,14 @@
 extern uint32_t G_smgr_validate_data_active_mask;
 extern uint32_t G_smgr_validate_data_observation_mask;
 
+// start time for delaying moving to safe state
+extern SsxTimebase G_reset_delay_start_time;
+
 enum eResetStates
 {
   RESET_NOT_REQUESTED = 0,
-  NOMINAL_REQUESTED_DUE_TO_ERROR,
+  RESET_CLEAR_DELAY,
+  RESET_NVDIMM_DELAY,
   RESET_REQUESTED_DUE_TO_ERROR,
 };
 
@@ -132,17 +136,6 @@ typedef enum
     commitErrl(&error_log);\
 }
 
-// Used by OCC FW to request that OCC go to Nominal because of an error
-#define REQUEST_NOMINAL() reset_state_request(NOMINAL_REQUESTED_DUE_TO_ERROR);
-
-// Used by OCC FW to signify that OCC can leave Nominal state because the
-// error that caused OCC to go to Nominal has cleared.
-#define CLEAR_NOMINAL()   reset_state_request(RESET_NOT_REQUESTED);
-
-// Used to indicate that OCC has established TMGT Comm, and should no longer
-// halt() on a reset request.
-#define DISABLE_HALT_ON_RESET_REQUEST() reset_disable_halt();
-
 // Returns the current OCC State
 #define CURRENT_STATE()  G_occ_internal_state
 
@@ -195,10 +188,6 @@ errlHndl_t SMGR_all_to_standby();
 errlHndl_t SMGR_all_to_safe();
 
 inline bool SMGR_is_state_transitioning(void);
-
-// Used by macro above to clear flag indicating to not halt OCC when a reset
-// is requested.
-inline void reset_disable_halt(void);
 
 // Used to see if anyone has requested reset/safe state
 bool isSafeStateRequested(void);

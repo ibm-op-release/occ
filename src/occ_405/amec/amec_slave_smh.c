@@ -72,6 +72,7 @@ extern opal_proc_voting_reason_t G_amec_opal_proc_throt_reason;
 extern uint16_t G_proc_fmax_mhz;
 extern GpeRequest G_wof_vfrt_req;
 extern bool G_pgpe_shared_sram_V_I_readings;
+extern uint8_t G_reset_state;
 
 //*************************************************************************
 // Macros
@@ -497,6 +498,18 @@ void amec_slv_common_tasks_post(void)
          inband_command_handler();
       }
   }
+
+  // check if delaying reset
+  if(G_reset_state == RESET_NVDIMM_DELAY)
+  {
+     // check if time expired and should move to safe state
+     if ( ((ssx_timebase_get() - G_reset_delay_start_time) > SSX_MILLISECONDS(NVDIMM_EPOW_SAFE_DELAY_MS)) )
+     {
+         TRAC_ERR("Reset delay time %dms expired", NVDIMM_EPOW_SAFE_DELAY_MS);
+         reset_state_request(RESET_CLEAR_DELAY);
+     }
+  }
+
 }
 
 // Function Specification

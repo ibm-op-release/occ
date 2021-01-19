@@ -897,26 +897,41 @@ errlHndl_t cmdh_reset_prep (const cmdh_fsp_cmd_t * i_cmd_ptr,
 
     do
     {
-        if (G_epow_gpio_scheduled)
+        // check if this system supports NVDIMMs
+        if(G_sysConfigData.apss_gpio_map.nvdimm_epow != SYSCFG_INVALID_PIN)
         {
-            // Check to see if EPOW_GPIO IPC request is not idle. If not, sleep
-            // 4ms to give it time to finish and then continue.
-            if(!async_request_is_idle(&G_epow_gpio_detected_req.request))
+            // if we aren't already in safe mode and reset is due to error delay to see if EPOW shows up
+            // if we are in safe mode that means we already delayed prior to moving ourselves to safe
+            if( (CURRENT_STATE() == OCC_STATE_ACTIVE) &&
+                ( (l_cmd_ptr->reason == CMDH_PREP_FAILON_THISOCC) ||
+                  (l_cmd_ptr->reason == CMDH_PREP_FAILON_OTHEROCC) ) )
             {
-                TRAC_IMP("cmdh_reset_prep: EPOW IPC request is NOT idle. Sleeping for 4ms");
-                ssx_sleep(SSX_MILLISECONDS(4));
+                TRAC_IMP("cmdh_reset_prep: Sleeping %dms for EPOW detection", NVDIMM_EPOW_SAFE_DELAY_MS);
+                ssx_sleep(SSX_MILLISECONDS(NVDIMM_EPOW_SAFE_DELAY_MS));
+            }
+
+            // check if EPOW was detected
+            if (G_epow_gpio_scheduled)
+            {
+                // Check to see if EPOW_GPIO IPC request is not idle. If not, sleep
+                // 4ms to give it time to finish and then continue.
                 if(!async_request_is_idle(&G_epow_gpio_detected_req.request))
                 {
-                    TRAC_ERR("cmdh_reset_prep: EPOW IPC request is still NOT idle. completion state=0x%08X",
+                    TRAC_IMP("cmdh_reset_prep: EPOW IPC request is NOT idle. Sleeping for 4ms");
+                    ssx_sleep(SSX_MILLISECONDS(4));
+                    if(!async_request_is_idle(&G_epow_gpio_detected_req.request))
+                    {
+                        TRAC_ERR("cmdh_reset_prep: EPOW IPC request is still NOT idle. completion state=0x%08X",
+                                 G_epow_gpio_detected_req.request.completion_state);
+                    }
+                }
+                else
+                {
+                    TRAC_IMP("cmdh_reset_prep: EPOW IPC request IS idle. completion state=0x%08X",
                              G_epow_gpio_detected_req.request.completion_state);
                 }
-            }
-            else
-            {
-                TRAC_IMP("cmdh_reset_prep: EPOW IPC request IS idle. completion state=0x%08X",
-                         G_epow_gpio_detected_req.request.completion_state);
-            }
-        }
+            }  // if G_epow_gpio_scheduled
+        } // if NVDIMM supported
 
         // Command Length Check - make sure we at least have a version number
         if( CMDH_DATALEN_FIELD_UINT16(i_cmd_ptr) < CMDH_RESET_PREP_MIN_DATALEN)

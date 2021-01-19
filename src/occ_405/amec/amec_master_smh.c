@@ -57,8 +57,8 @@
 //Power cap mismatch threshold
 #define PCAPS_MISMATCH_THRESHOLD 80
 
-//Power cap failure threshold with no GPUs set to 32 ticks
-#define PCAP_FAILURE_THRESHOLD 32
+//Power cap failure threshold with no GPUs
+#define PCAP_FAILURE_THRESHOLD 80
 
 //Power cap failure threshold with GPUs set to number of ticks for 2s
 #define PCAP_GPU_FAILURE_THRESHOLD (2000000 / MICS_PER_TICK)
@@ -384,6 +384,7 @@ void amec_mst_check_under_pcap(void)
     uint8_t l_apss_func_id = 0;
     uint32_t l_trace[MAX_APSS_ADC_CHANNELS] = {0};  // used to trace per channel data
     uint8_t l_trace_idx = 0;
+    static bool L_error_logged = FALSE;
 
 
     /*------------------------------------------------------------------------*/
@@ -414,8 +415,10 @@ void amec_mst_check_under_pcap(void)
 
             // GPUs take longer for power limit to take effect if GPUs are present need to use
             // a longer wait time before logging an error and resetting
-            if( ( (!G_first_num_gpus_sys) && (G_over_cap_count >= PCAP_FAILURE_THRESHOLD) ) ||
-                ( (G_first_num_gpus_sys) && (G_over_cap_count >= PCAP_GPU_FAILURE_THRESHOLD) ) )
+            if( (L_error_logged == FALSE) &&
+                ( ( (!G_first_num_gpus_sys) && (G_over_cap_count >= PCAP_FAILURE_THRESHOLD) ) ||
+                  ( (G_first_num_gpus_sys) && (G_over_cap_count >= PCAP_GPU_FAILURE_THRESHOLD) ) )
+              )
             {
                 TRAC_ERR("Failure to maintain power cap: Power Cap = %d ,"
                          "PWRSYS = %d",g_amec->pcap.active_node_pcap,
@@ -495,8 +498,8 @@ void amec_mst_check_under_pcap(void)
                                  G_sysConfigData.apss_huid,
                                  ERRL_CALLOUT_PRIORITY_HIGH);
 
-                //Reset OCC
-                REQUEST_RESET(l_err);
+                commitErrl(&l_err);
+                L_error_logged = TRUE;
             }
         }
         else

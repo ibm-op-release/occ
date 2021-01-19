@@ -34,23 +34,7 @@
 // Holds the state of the reset state machine
 uint8_t G_reset_state = RESET_NOT_REQUESTED;
 
-// Flag indicating if we should halt on a reset request, or if we should
-// enter the reset state machine.  Default this to false
-bool G_halt_on_reset_request = FALSE;
-
-
-// Function Specification
-//
-// Name: reset_disable_halt
-//
-// Description: Clear Flag that indicates if OCC should call halt
-//
-// End Function Specification
-inline void reset_disable_halt(void)
-{
-  G_halt_on_reset_request = FALSE;
-}
-
+SsxTimebase G_reset_delay_start_time = 0;
 
 // Function Specification
 //
@@ -77,56 +61,47 @@ void reset_state_request(uint8_t i_request)
   switch(i_request)
   {
     case RESET_REQUESTED_DUE_TO_ERROR:
-      // In case we want to just halt() if fw requests a reset, this is
-      // the place to do it.  It is disabled by default, and there is no
-      // code to eanble it.
-      if( G_halt_on_reset_request )
+      // If we aren't already in reset, set the reset
+      // state to enter the reset state machine.
+      if( G_reset_state == RESET_NOT_REQUESTED )
       {
-          TRAC_ERR("Halt()");
+        // check if this system supports NVDIMMs and we are ACTIVE
+        // if we aren't active that means we aren't monitoring for EPOW anyway
+        // so no need to delay
+        if( (G_sysConfigData.apss_gpio_map.nvdimm_epow != SYSCFG_INVALID_PIN) &&
+            (CURRENT_STATE() == OCC_STATE_ACTIVE) )
+        {
+            // delay reset to allow for EPOW detection
+            TRAC_IMP("Delaying %dms for Activating reset required state.", NVDIMM_EPOW_SAFE_DELAY_MS);
+            G_reset_state = RESET_NVDIMM_DELAY;
+            G_reset_delay_start_time = ssx_timebase_get();
+        }
+        else
+        {
+            TRAC_IMP("Activating reset required state.");
+            G_reset_state = RESET_REQUESTED_DUE_TO_ERROR;
 
-          // This isn't modeled very well in simics.  OCC will go into an
-          // infinite loop, which eventually would crash Simics.
-          HALT_WITH_FIR_SET;
-      }
+            // Post the semaphore to wakeup the thread that
+            // will put us into SAFE state.
+            ssx_semaphore_post(&G_dcomThreadWakeupSem);
 
-      // If we have TMGT comm, and we aren't already in reset, set the reset
-      // state to reset to enter the reset state machine.
-      if( G_reset_state < RESET_REQUESTED_DUE_TO_ERROR )
-      {
-        TRAC_IMP("Activating reset required state.");
-
-        G_reset_state = RESET_REQUESTED_DUE_TO_ERROR;
-
-        // Post the semaphore to wakeup the thread that
-        // will put us into SAFE state.
-        ssx_semaphore_post(&G_dcomThreadWakeupSem);
-
-        // Set RTL Flags here too, depending how urgent it is that we stop
-        // running tasks.
-        rtl_set_run_mask(RTL_FLAG_RST_REQ);
-      }
-      break;
-
-    case NOMINAL_REQUESTED_DUE_TO_ERROR:
-      if( G_reset_state < NOMINAL_REQUESTED_DUE_TO_ERROR )
-      {
-        TRAC_ERR("Going to Nominal because of error");
-
-        // May need to add counter if multiple places request nominal
-        G_reset_state = NOMINAL_REQUESTED_DUE_TO_ERROR;
-
+            // Set RTL Flags here too, depending how urgent it is that we stop
+            // running tasks.
+            rtl_set_run_mask(RTL_FLAG_RST_REQ);
+        }
       }
       break;
 
-    case RESET_NOT_REQUESTED:
-      if( G_reset_state == NOMINAL_REQUESTED_DUE_TO_ERROR )
-      {
-        TRAC_IMP("Clearing Nominal Reset State because of error");
+    case RESET_CLEAR_DELAY:
+            // Delay expired, move into safe state
+            G_reset_state = RESET_REQUESTED_DUE_TO_ERROR;
 
-        // May need to add counter check if multiple places request nominal
-        G_reset_state = RESET_NOT_REQUESTED;
+            // Post the semaphore to wakeup the thread that
+            // will put us into SAFE state.
+            ssx_semaphore_post(&G_dcomThreadWakeupSem);
 
-      }
+            // Set RTL flags to stop running tasks.
+            rtl_set_run_mask(RTL_FLAG_RST_REQ);
       break;
 
     default:
